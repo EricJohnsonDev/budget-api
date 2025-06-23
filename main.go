@@ -31,6 +31,20 @@ func main() {
 		log.Fatal(err)
 	}
 	fmt.Printf("Expenses found: %v\n", expenses)
+
+	testExpense := ExpenseTx{
+		Date:        "2000-01-01",
+		Amount:      "$666.42",
+		Institution: "Budget-API",
+		Category:    "TESTING",
+		Comment:     "Testing, sent from api",
+	}
+	newRowId, err := addExpense(testExpense)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Added expense with ID: %v\n", newRowId)
 }
 
 // Query for expenses from a single day
@@ -57,6 +71,17 @@ func expensesByDate(date string) ([]ExpenseTx, error) {
 	}
 
 	return expenses, nil
+}
+
+func addExpense(expense ExpenseTx) (int, error) {
+	row := db.QueryRow("INSERT INTO tx_expenses (\"Date\", \"Amount\", \"Institution\", \"Category\", \"Comment\") VALUES($1, $2, $3, $4, $5) RETURNING id", expense.Date, expense.Amount, expense.Institution, expense.Category, expense.Comment)
+	err := row.Scan(&expense.ID)
+
+	if err != nil {
+		return 0, fmt.Errorf("addExpense: %v", err)
+	}
+
+	return expense.ID, nil
 }
 
 func connectToDb() *sql.DB {
