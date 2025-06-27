@@ -1,4 +1,4 @@
-module prototypes/budget-api
+module elelequent/prototypes/budget-api
 
 go 1.24.4
 

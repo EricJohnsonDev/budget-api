@@ -1,7 +1,8 @@
 package main
 
 import (
-	"database/sql"
+	"elelequent/prototypes/budget-api/dao/factory"
+	"elelequent/prototypes/budget-api/dao/models"
 	"fmt"
 	"log"
 	"os"
@@ -10,109 +11,30 @@ import (
 	_ "github.com/lib/pq"
 )
 
-var db *sql.DB
-
-type ExpenseTx struct {
-	ID          int
-	Date        string
-	Amount      string
-	Institution string
-	Category    string
-	Subcategory string
-	Comment     string
-}
-
 func main() {
 	loadEnv()
-	db = connectToDb()
 
-	expenses, err := expensesByDate("2025-05-29")
+	budgetDao := factory.FactoryDao("postgresql")
+
+	expenses, err := budgetDao.ExpensesByDate("2025-05-29")
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("Expenses found: %v\n", expenses)
 
-	testExpense := ExpenseTx{
+	testExpense := models.Tx_expenses{
 		Date:        "2000-01-01",
 		Amount:      "$666.42",
 		Institution: "Budget-API",
 		Category:    "TESTING",
 		Comment:     "Testing, sent from api",
 	}
-	newRowId, err := addExpense(testExpense)
+	newRowId, err := budgetDao.AddExpense(testExpense)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Printf("Added expense with ID: %v\n", newRowId)
-}
-
-// Query for expenses from a single day
-func expensesByDate(date string) ([]ExpenseTx, error) {
-	var expenses []ExpenseTx
-
-	rows, err := db.Query("SELECT * FROM tx_expenses WHERE \"Date\" = $1", date)
-	if err != nil {
-		return nil, fmt.Errorf("expensesByDate %q: %v", date, err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var expense ExpenseTx
-		if err := rows.Scan(&expense.ID, &expense.Date, &expense.Amount, &expense.Institution, &expense.Category, &expense.Subcategory, &expense.Comment); err != nil {
-			return nil, fmt.Errorf("expensesByDate %q: %v", date, err)
-		}
-
-		expenses = append(expenses, expense)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("expensesByDate %q: %v", date, err)
-	}
-
-	return expenses, nil
-}
-
-func addExpense(expense ExpenseTx) (int, error) {
-	row := db.QueryRow("INSERT INTO tx_expenses (\"Date\", \"Amount\", \"Institution\", \"Category\", \"Comment\") VALUES($1, $2, $3, $4, $5) RETURNING id", expense.Date, expense.Amount, expense.Institution, expense.Category, expense.Comment)
-	err := row.Scan(&expense.ID)
-
-	if err != nil {
-		return 0, fmt.Errorf("addExpense: %v", err)
-	}
-
-	return expense.ID, nil
-}
-
-func connectToDb() *sql.DB {
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbPwd := os.Getenv("DB_PWD")
-	dbUser := os.Getenv("DB_USER")
-	dbName := os.Getenv("DB_NAME")
-	sslCert := os.Getenv("SSL_CERT")
-
-	// Database stuff
-	connStr := "host=" + dbHost +
-		" port=" + dbPort +
-		" user=" + dbUser +
-		" password=" + dbPwd +
-		" dbname=" + dbName +
-		" sslmode=verify-full " +
-		" sslrootcert=" + sslCert
-
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	pingErr := db.Ping()
-	if pingErr != nil {
-		log.Fatal(pingErr)
-	}
-
-	fmt.Println("Confirmed connection to db")
-	return db
 }
 
 func loadEnv() {
