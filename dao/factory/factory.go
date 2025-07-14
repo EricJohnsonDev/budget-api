@@ -11,9 +11,9 @@ func FactoryDao(dbEngine string) interfaces.BudgetDao {
 
 	switch dbEngine {
 	case "postgresql":
-		iface = postgresql.BudgetImplPostgresql{}
+		iface = postgresql.PostgresqlDao{}
 	default:
-		log.Fatalf("DB %s is not implemented", dbEngine)
+		log.Fatalf("DB '%s' is not implemented", dbEngine)
 		return nil
 	}
 

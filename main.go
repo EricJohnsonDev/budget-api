@@ -2,51 +2,44 @@ package main
 
 import (
 	"elelequent/prototypes/budget-api/dao/factory"
-	"elelequent/prototypes/budget-api/dao/models"
+	"elelequent/prototypes/budget-api/dao/interfaces"
+	"elelequent/prototypes/budget-api/utility"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
-
-	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
 )
 
+var dao interfaces.BudgetDao
+
 func main() {
-	loadEnv()
+	utility.LoadEnv()
 
-	budgetDao := factory.FactoryDao("postgresql")
+	dao = factory.FactoryDao(os.Getenv("DB_ENGINE"))
+	dao.EstablishConnection()
 
-	expenses, err := budgetDao.ExpensesByDate("2025-05-29")
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("Expenses found: %v\n", expenses)
+	http.HandleFunc("/expense/date/", expenseByDateHandler)
 
-	testExpense := models.Tx_expenses{
-		Date:        "2000-01-01",
-		Amount:      "$666.42",
-		Institution: "Budget-API",
-		Category:    "TESTING",
-		Comment:     "Testing, sent from api",
-	}
-	newRowId, err := budgetDao.AddExpense(testExpense)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Printf("Added expense with ID: %v\n", newRowId)
+	fmt.Println("Starting Budget-API, ctrl+c to exit...")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-func loadEnv() {
-	env := os.Getenv("BUDGETAPI_ENV")
-	if env == "" {
-		env = "development"
+func expenseByDateHandler(w http.ResponseWriter, r *http.Request) {
+	expenseDate := r.URL.Path[len("/expense/date/"):]
+
+	expenses, err := dao.ExpensesByDate(expenseDate)
+
+	if err != nil {
+		log.Fatalf("Error getting expense for date %s: %s", expenseDate, err)
 	}
 
-	godotenv.Load(".env." + env + ".local")
-	if env != "test" {
-		godotenv.Load(".env.local")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	expensesJson, err := json.Marshal(expenses)
+	if err != nil {
+		log.Fatalf("JSON error: %s", err)
 	}
-	godotenv.Load(".env." + env)
-	godotenv.Load()
+
+	fmt.Fprintf(w, "{\"Expenses\": %v}", string(expensesJson))
 }

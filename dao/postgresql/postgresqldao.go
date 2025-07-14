@@ -1,18 +1,24 @@
 package postgresql
 
 import (
+	"database/sql"
 	"elelequent/prototypes/budget-api/dao/models"
 	"fmt"
+
+	_ "github.com/lib/pq"
 )
 
-type BudgetImplPostgresql struct {
+type PostgresqlDao struct {
 }
 
-func (dao BudgetImplPostgresql) AddExpense(expense models.Tx_expenses) (int, error) {
-	db := connectToDb()
-	defer db.Close()
+var db *sql.DB
 
-	row := db.QueryRow("INSERT INTO tx_expenses (\"Date\", \"Amount\", \"Institution\", \"Category\", \"Comment\") VALUES($1, $2, $3, $4, $5) RETURNING id", expense.Date, expense.Amount, expense.Institution, expense.Category, expense.Comment)
+func (dao PostgresqlDao) EstablishConnection() {
+	db = connectToDb()
+}
+
+func (dao PostgresqlDao) AddExpense(expense models.Tx_expenses) (int, error) {
+	row := db.QueryRow(INSERT_EXPENSE, expense.Date, expense.Amount, expense.Institution, expense.Category, expense.Comment)
 	err := row.Scan(&expense.ID)
 
 	if err != nil {
@@ -22,13 +28,10 @@ func (dao BudgetImplPostgresql) AddExpense(expense models.Tx_expenses) (int, err
 	return expense.ID, nil
 }
 
-func (dao BudgetImplPostgresql) ExpensesByDate(date string) ([]models.Tx_expenses, error) {
+func (dao PostgresqlDao) ExpensesByDate(date string) ([]models.Tx_expenses, error) {
 	var expenses []models.Tx_expenses
 
-	db := connectToDb()
-	defer db.Close()
-
-	rows, err := db.Query("SELECT * FROM tx_expenses WHERE \"Date\" = $1", date)
+	rows, err := db.Query(SELECT_EXPENSE_BY_DATE, date)
 	if err != nil {
 		return nil, fmt.Errorf("expensesByDate %q: %v", date, err)
 	}
