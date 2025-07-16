@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"elelequent/prototypes/budget-api/dao/models"
 	"fmt"
+	"log"
 
 	_ "github.com/lib/pq"
 )
@@ -17,15 +18,30 @@ func (dao PostgresqlDao) EstablishConnection() {
 	db = connectToDb()
 }
 
-func (dao PostgresqlDao) AddExpense(expense models.Tx_expenses) (int, error) {
-	row := db.QueryRow(INSERT_EXPENSE, expense.Date, expense.Amount, expense.Institution, expense.Category, expense.Comment)
-	err := row.Scan(&expense.ID)
+func (dao PostgresqlDao) AddExpenses(expenses []models.Tx_expenses) (int64, error) {
+	values := []interface{}{}
+	numTxExpenseFields := 6
 
-	if err != nil {
-		return 0, fmt.Errorf("addExpense: %v", err)
+	for _, expense := range expenses {
+		values = append(values, expense.Date, expense.Amount, expense.Institution, expense.Category, expense.Subcategory, expense.Comment)
 	}
 
-	return expense.ID, nil
+	stmt, err := db.Prepare(INSERT_EXPENSES + prepareValuesFmt(numTxExpenseFields, len(expenses)))
+	if err != nil {
+		log.Printf("Error: Unable to prepare insert: %v", err)
+		return 0, err
+	}
+	defer stmt.Close()
+
+	result, err := stmt.Exec(values...)
+	if err != nil {
+		log.Printf("Error: Unable to execute prepared insert: %v", err)
+		return 0, err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+
+	return rowsAffected, err
 }
 
 func (dao PostgresqlDao) ExpensesByDate(startDate string, endDate string) ([]models.Tx_expenses, error) {
