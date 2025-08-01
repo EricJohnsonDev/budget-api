@@ -18,7 +18,8 @@ func main() {
 	handlers.SetDao(dao)
 
 	http.HandleFunc("/expense/date", handlers.ExpensesByDates)
-	http.HandleFunc("/expense/add", handlers.AddExpenses)
+	http.HandleFunc("/expense/add", handlers.AddExpense)
+	http.HandleFunc("/expense/bulkadd", handlers.BulkAddExpenses)
 
 	fmt.Println("Starting Budget-API, ctrl+c to exit...")
 	log.Fatal(http.ListenAndServe(":8080", nil))

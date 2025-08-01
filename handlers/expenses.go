@@ -40,10 +40,40 @@ func ExpensesByDates(w http.ResponseWriter, r *http.Request) {
 
 	setCommonHeaders(w)
 
-	fmt.Fprintf(w, "{\"Expenses\": %v}", string(expensesJson))
+	fmt.Fprint(w, string(expensesJson))
 }
 
-func AddExpenses(w http.ResponseWriter, r *http.Request) {
+func AddExpense(w http.ResponseWriter, r *http.Request) {
+	var expenseToAdd models.Tx_expenses
+
+	setCommonHeaders(w)
+
+	defer r.Body.Close()
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		http.Error(w, "Error processing request", http.StatusInternalServerError)
+		return
+	}
+
+	err = json.Unmarshal(body, &expenseToAdd)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		http.Error(w, "Error decoding json body", http.StatusInternalServerError)
+		return
+	}
+
+	numRowsAdded, err := dao.AddExpenses([]models.Tx_expenses{expenseToAdd})
+	if err != nil {
+		log.Printf("Error: %v", err)
+		http.Error(w, "Error adding expenses", http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Fprint(w, numRowsAdded)
+}
+
+func BulkAddExpenses(w http.ResponseWriter, r *http.Request) {
 	var expensesToAdd []models.Tx_expenses
 
 	setCommonHeaders(w)
